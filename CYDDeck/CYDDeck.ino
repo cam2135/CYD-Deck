@@ -52,9 +52,8 @@ void drawDeck(){ tft.fillScreen(BG); JsonObject p=currentPage(); title(String(de
  for(int i=0;i<8;i++){ if(i<b.size()) drawButton(i,b[i]["name"]|"Button",b[i]["type"]|"Custom"); }
 }
 // HID keyboard helpers. Windows receives a normal physical-keyboard sequence.
-// BLE HID reports need a small gap on some Windows Bluetooth adapters.  Sending
-// them too quickly can lose characters, especially immediately after Win+R.
-void sendKey(uint8_t modifier,uint8_t key){ if(!keyboardInput)return; uint8_t report[8]={modifier,0,key,0,0,0,0,0}; keyboardInput->setValue(report,sizeof(report)); keyboardInput->notify(); delay(10); uint8_t released[8]={0}; keyboardInput->setValue(released,sizeof(released)); keyboardInput->notify(); delay(20); }
+// A short BLE HID gap keeps input reliable without making long actions sluggish.
+void sendKey(uint8_t modifier,uint8_t key){ if(!keyboardInput)return; uint8_t report[8]={modifier,0,key,0,0,0,0,0}; keyboardInput->setValue(report,sizeof(report)); keyboardInput->notify(); delay(5); uint8_t released[8]={0}; keyboardInput->setValue(released,sizeof(released)); keyboardInput->notify(); delay(8); }
 void typeText(const String& text){
   for(size_t i=0;i<text.length();i++){
     char c=text[i]; uint8_t mod=0,key=0;
@@ -107,9 +106,9 @@ void typeText(const String& text){
 void openOnWindows(const String& target){
   if(target.length()==0)return;
   sendKey(0x08,0x15);             // Win + R
-  delay(350);                     // wait until the Windows Run field accepts input
+  delay(180);                     // wait until the Windows Run field accepts input
   typeText(target);               // HID keyboards cannot set the host clipboard; type reliably instead
-  delay(80);
+  delay(30);
   sendKey(0,0x28);                // Enter
 }
 
