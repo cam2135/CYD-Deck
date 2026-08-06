@@ -9,7 +9,7 @@ A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press 
 ## What it does
 
 - 8 touch buttons per page, laid out in a 4×2 grid
-- Supports **folders** — tap a folder button to open a sub-page, tap **< Home** to go back
+- Supports **folders** — tap a folder button to open a sub-page; **Home** returns to the root page in one tap
 - Multiple pages and profiles, all configured visually in the editor
 - Connects to Windows as a standard BLE HID keyboard — no drivers needed
 - Config is stored on an SD card as a plain `deck.deck` JSON file
@@ -86,7 +86,7 @@ The editor runs on Windows and requires Python 3.10+.
 ### Install dependencies
 
 ```bash
-py -m pip install customtkinter bleak pillow tkinterdnd2
+py -m pip install customtkinter tkinterdnd2
 ```
 
 ### Run the editor
@@ -122,7 +122,7 @@ Click a button to select it and edit it in the **Inspector** on the right.
 
 ### Folders
 
-A Folder button navigates to another page on the CYD when tapped. On the device, a **< Home** button appears in the top-right corner so you can go back.
+A Folder button navigates to another page on the CYD when tapped. On the device, a **Home** button appears in the top-right corner and always returns directly to the root Home page.
 
 In the editor:
 - Double-click a folder card to jump to its page
@@ -139,9 +139,6 @@ In the editor:
 | Open File | Opens a file path |
 | Open Folder | Opens a folder in Explorer |
 | Folder | Navigates to another page on the CYD |
-| Macro | Sends a sequence of keys |
-| Media / Volume | Media playback and volume controls |
-| Lock PC / Sleep / Restart / Shutdown | System actions |
 
 ### Saving
 
@@ -197,7 +194,7 @@ Make sure NimBLE-Arduino is installed. Also check that your PC's Bluetooth is on
 Format as FAT32. File must be named exactly `deck.deck` in the root of the card.
 
 **Editor won't start**
-Run `py -m pip install customtkinter bleak pillow` and try again.
+Run `py -m pip install customtkinter tkinterdnd2` and try again.
 
 ---
 
