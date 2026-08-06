@@ -58,9 +58,9 @@ void sendKey(uint8_t modifier,uint8_t key){ if(!keyboardInput)return; uint8_t re
 void typeText(const String& text){
   for(size_t i=0;i<text.length();i++){
     char c=text[i]; uint8_t mod=0,key=0;
-    if(c>='a'&&c<='z') key=0x04+c-'a';
-    else if(c>='A'&&c<='Z'){ key=0x04+c-'A'; mod=0x02; }
-    else if(c>='1'&&c<='9') key=0x1E+c-'1';
+    if(c>='a'&&c<='z') key=0x04 + c - 'a';
+    else if(c>='A'&&c<='Z'){ key=0x04 + c - 'A'; mod=0x02; }
+    else if(c>='1'&&c<='9') key=0x1E + c - '1';
     else if(c=='0') key=0x27;
     else {
       switch(c){
@@ -141,9 +141,9 @@ void sendShortcut(const String& shortcut) {
   uint8_t key=0;
   if(k.length()==1){
     char c=k[0];
-    if(c>='a'&&c<='z')      key=0x04+c-'a';
-    else if(c>='A'&&c<='Z') key=0x04+c-'A';
-    else if(c>='1'&&c<='9') key=0x1E+c-'1';
+    if(c>='a'&&c<='z')      key=0x04 + c - 'a';
+    else if(c>='A'&&c<='Z') key=0x04 + c - 'A';
+    else if(c>='1'&&c<='9') key=0x1E + c - '1';
     else if(c=='0')          key=0x27;
     else {
       // Single punctuation — reuse typeText logic via a one-char string
