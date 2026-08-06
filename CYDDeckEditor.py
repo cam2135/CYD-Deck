@@ -1,6 +1,6 @@
 """CYD Deck Editor - single-file Windows configuration application.
 
-Install once:  py -m pip install customtkinter bleak tkinterdnd2
+Install once:  py -m pip install customtkinter tkinterdnd2
 """
 from __future__ import annotations
 import copy, ctypes, json, subprocess, sys, uuid, zipfile
@@ -170,16 +170,21 @@ class Editor(ctk.CTk):
         ctk.CTkLabel(win, text="Press the shortcut you want to use", font=ctk.CTkFont(size=17, weight="bold")).pack(pady=(26, 8))
         status = ctk.CTkLabel(win, text="Keep pressing shortcuts to add them. Press Esc, then Tab, to save.", wraplength=330)
         status.pack(padx=20, pady=4)
-        recorded = {"values": [], "finish_armed": False}
+        recorded = {"values": [], "finish_armed": False, "active": [], "modifier_used": set()}
+        modifiers = {"Control_L": "Ctrl", "Control_R": "Ctrl", "Shift_L": "Shift", "Shift_R": "Shift", "Alt_L": "Alt", "Alt_R": "Alt", "Super_L": "Win", "Super_R": "Win", "Win_L": "Win", "Win_R": "Win", "Meta_L": "Win", "Meta_R": "Win"}
+
+        def add_value(value):
+            recorded["values"].append(value)
+            status.configure(text="Recorded: " + ", ".join(recorded["values"]) + "\nPress Esc, then Tab, to save it.")
 
         def display_name(event):
             key = event.keysym
-            names = {"Return": "Enter", "space": "Space", "BackSpace": "Backspace", "Prior": "PgUp", "Next": "PgDn"}
+            names = {"Return": "Enter", "space": "Space", "BackSpace": "Backspace", "Prior": "PgUp", "Next": "PgDn", "Caps_Lock": "CapsLock", "Num_Lock": "NumLock", "Scroll_Lock": "ScrollLock", "Print": "PrintScreen", "KP_0": "Numpad0", "KP_1": "Numpad1", "KP_2": "Numpad2", "KP_3": "Numpad3", "KP_4": "Numpad4", "KP_5": "Numpad5", "KP_6": "Numpad6", "KP_7": "Numpad7", "KP_8": "Numpad8", "KP_9": "Numpad9", "KP_Add": "Numpad+", "KP_Subtract": "Numpad-", "KP_Multiply": "Numpad*", "KP_Divide": "Numpad/", "KP_Decimal": "Numpad.", "KP_Enter": "NumpadEnter"}
             key = names.get(key, key.upper() if len(key) == 1 else key)
-            parts = []
-            if event.state & 0x0004: parts.append("Ctrl")
-            if event.state & 0x0001: parts.append("Shift")
-            if event.state & 0x0008: parts.append("Alt")
+            parts = list(recorded["active"])
+            if event.state & 0x0004 and "Ctrl" not in parts: parts.append("Ctrl")
+            if event.state & 0x0001 and "Shift" not in parts: parts.append("Shift")
+            if event.state & 0x0008 and "Alt" not in parts: parts.append("Alt")
             return "+".join(parts + [key])
 
         def finish():
@@ -195,15 +200,25 @@ class Editor(ctk.CTk):
                 return "break"
             if recorded["finish_armed"] and event.keysym == "Tab":
                 finish(); return "break"
-            if event.keysym in {"Control_L", "Control_R", "Shift_L", "Shift_R", "Alt_L", "Alt_R"}:
+            if event.keysym in modifiers:
+                name = modifiers[event.keysym]
+                recorded["modifier_used"].discard(name)
+                if name not in recorded["active"]: recorded["active"].append(name)
                 return "break"
             recorded["finish_armed"] = False
-            recorded["values"].append(display_name(event))
-            status.configure(text="Recorded: " + ", ".join(recorded["values"]) + "\nPress Esc, then Tab, to save it.")
+            recorded["modifier_used"].update(recorded["active"])
+            add_value(display_name(event))
+            return "break"
+
+        def on_key_release(event):
+            if event.keysym not in modifiers: return "break"
+            name = modifiers[event.keysym]
+            if name in recorded["active"]: recorded["active"].remove(name)
+            if name not in recorded["modifier_used"]: add_value(name)
             return "break"
 
         ctk.CTkButton(win, text="Cancel", command=lambda: (win.grab_release(), win.destroy())).pack(side="bottom", pady=18)
-        win.bind("<KeyPress>", on_key); win.protocol("WM_DELETE_WINDOW", lambda: (win.grab_release(), win.destroy()))
+        win.bind("<KeyPress>", on_key); win.bind("<KeyRelease>", on_key_release); win.protocol("WM_DELETE_WINDOW", lambda: (win.grab_release(), win.destroy()))
         win.grab_set(); win.focus_force()
 
     def field(self, label, obj, key):
@@ -389,8 +404,6 @@ class Editor(ctk.CTk):
     def save(self):
         if self._save_path is None: self.save_as(); return
         # Commit any text field that still has focus before writing to disk.
-        try: self.focus_get().event_generate("<<Commit>>")
-        except Exception: pass
         try:
             commit = getattr(self.focus_get(), "_cyd_commit", None)
             if commit: commit()
