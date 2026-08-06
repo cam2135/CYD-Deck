@@ -85,8 +85,6 @@ class Editor(ctk.CTk):
             is_active = (i == self.page)
             ctk.CTkButton(row, text=p["name"], fg_color="#3b8ed0" if is_active else "transparent",
                 anchor="w", height=28, command=lambda x=i: self.select_page(x)).pack(side="left", fill="x", expand=True, padx=(4, 2))
-            ctk.CTkButton(row, text="...", width=28, height=28, fg_color="transparent",
-                command=lambda x=i: self._page_menu(x)).pack(side="right", padx=(0, 4))
         ctk.CTkButton(self.side, text="+ Add page", command=self.add_page).pack(fill="x", padx=10, pady=(4,8))
         ctk.CTkButton(self.side, text="Settings", command=self.settings).pack(side="bottom", fill="x", padx=10, pady=12)
 
@@ -137,6 +135,7 @@ class Editor(ctk.CTk):
             self._draw_folder_inspector(b)
         else:
             self.field("Action / value", b, "action")
+            if b["type"] == "Keyboard Shortcut": self._draw_shortcut_recorder(b)
         self.field("Toggle label", b, "toggleName")
         self.field("Toggle action", b, "toggleAction")
         v = tk.BooleanVar(value=b["toggle"])
@@ -161,6 +160,51 @@ class Editor(ctk.CTk):
         if linked_idx is not None:
             ctk.CTkButton(self.inspector, text="Open folder page →", command=lambda: self.select_page(linked_idx)).pack(fill="x", padx=10, pady=(6,2))
         ctk.CTkButton(self.inspector, text="+ Create & link new page", command=lambda: self._create_linked_page(b)).pack(fill="x", padx=10, pady=(4,2))
+
+    def _draw_shortcut_recorder(self, b):
+        ctk.CTkButton(self.inspector, text="Record shortcut", command=lambda: self.record_shortcut(b)).pack(fill="x", padx=10, pady=(7, 2))
+        ctk.CTkLabel(self.inspector, text="Record one or more shortcuts. Press Esc, then Tab to finish.", text_color="#888", wraplength=220).pack(padx=12, pady=(0, 3))
+
+    def record_shortcut(self, b):
+        win = ctk.CTkToplevel(self); win.title("Record shortcut"); win.geometry("390x180"); win.resizable(False, False)
+        ctk.CTkLabel(win, text="Press the shortcut you want to use", font=ctk.CTkFont(size=17, weight="bold")).pack(pady=(26, 8))
+        status = ctk.CTkLabel(win, text="Keep pressing shortcuts to add them. Press Esc, then Tab, to save.", wraplength=330)
+        status.pack(padx=20, pady=4)
+        recorded = {"values": [], "finish_armed": False}
+
+        def display_name(event):
+            key = event.keysym
+            names = {"Return": "Enter", "space": "Space", "BackSpace": "Backspace", "Prior": "PgUp", "Next": "PgDn"}
+            key = names.get(key, key.upper() if len(key) == 1 else key)
+            parts = []
+            if event.state & 0x0004: parts.append("Ctrl")
+            if event.state & 0x0001: parts.append("Shift")
+            if event.state & 0x0008: parts.append("Alt")
+            return "+".join(parts + [key])
+
+        def finish():
+            value = ", ".join(recorded["values"])
+            if value and b.get("action") != value:
+                self.snapshot(); b["action"] = value
+            win.grab_release(); win.destroy(); self.redraw()
+
+        def on_key(event):
+            if event.keysym == "Escape":
+                recorded["finish_armed"] = True
+                status.configure(text="Finish armed — press Tab to save the recorded shortcut.")
+                return "break"
+            if recorded["finish_armed"] and event.keysym == "Tab":
+                finish(); return "break"
+            if event.keysym in {"Control_L", "Control_R", "Shift_L", "Shift_R", "Alt_L", "Alt_R"}:
+                return "break"
+            recorded["finish_armed"] = False
+            recorded["values"].append(display_name(event))
+            status.configure(text="Recorded: " + ", ".join(recorded["values"]) + "\nPress Esc, then Tab, to save it.")
+            return "break"
+
+        ctk.CTkButton(win, text="Cancel", command=lambda: (win.grab_release(), win.destroy())).pack(side="bottom", pady=18)
+        win.bind("<KeyPress>", on_key); win.protocol("WM_DELETE_WINDOW", lambda: (win.grab_release(), win.destroy()))
+        win.grab_set(); win.focus_force()
 
     def field(self, label, obj, key):
         ctk.CTkLabel(self.inspector, text=label, anchor="w").pack(fill="x", padx=12, pady=(9,0))
