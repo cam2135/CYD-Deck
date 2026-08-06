@@ -27,7 +27,7 @@ def project():
 
 class Editor(ctk.CTk):
     def __init__(self):
-        super().__init__(); APP_DIR.mkdir(exist_ok=True); ASSET_DIR.mkdir(exist_ok=True)
+        super().__init__(); APP_DIR.mkdir(exist_ok=True)
         self.data, self.page, self.selected, self.undo_stack, self.redo_stack = project(), 0, None, [], []
         self._save_path: Path | None = None
         self._dirty = False  # true when there are unsaved changes
