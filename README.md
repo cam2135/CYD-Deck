@@ -153,7 +153,7 @@ In the editor:
 3. Press one or more key combinations, such as `Ctrl+C` followed by `Ctrl+V`.
 4. Press **Esc**, then **Tab** to save the recorded sequence.
 
-You can also type shortcuts directly in **Action / value**. Separate each shortcut with a comma, for example `Ctrl+C, Ctrl+V`. The firmware supports `Ctrl`, `Shift`, `Alt`, and `Win`, plus letters, numbers, F1-F12, arrows, Enter, Tab, Delete, Home, End, Page Up, and Page Down.
+You can also type shortcuts directly in **Action / value**. Separate each shortcut with a comma, for example `Ctrl+C, Ctrl+V`. The firmware supports modifier keys by themselves or in combinations: `Ctrl`, `Shift`, `Alt`, and `Win`. It also supports letters, numbers, punctuation, F1-F24, arrows, Enter, Tab, Escape, Insert, Delete, Home, End, Page Up/Down, Print Screen, Pause, Caps Lock, Num Lock, Scroll Lock, Menu, and the numeric keypad.
 
 ### Saving
 
