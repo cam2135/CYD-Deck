@@ -16,7 +16,7 @@
 static const uint8_t TOUCH_CS=33, TOUCH_IRQ=36, TOUCH_SCK=25, TOUCH_MISO=39, TOUCH_MOSI=32, BACKLIGHT_PIN=21;
 // Built-in CYD TF/microSD slot: CS 5, SCK 18, MISO 19, MOSI 23.
 static const uint8_t SD_CARD_CS=5;
-static const char *CONFIG="/config.json";
+static const char *CONFIG="/config.json", *STATE="/state.json";
 static const char *BLE_NAME="CYD Deck";
 TFT_eSPI tft; XPT2046_Touchscreen touch(TOUCH_CS,TOUCH_IRQ); DynamicJsonDocument deck(24576);
 NimBLECharacteristic* keyboardInput=nullptr;
@@ -24,9 +24,11 @@ NimBLECharacteristic* keyboardInput=nullptr;
 // bus here can corrupt TFT transactions and look like static on one side.
 SPIClass touchSPI(HSPI);
 SPIClass sdSPI(VSPI);
-int pageIndex=0, folderDepth=0; String pageStack[8]; bool configDirty=false, sdMounted=false; uint32_t lastTouch=0;
+int pageIndex=0, folderDepth=0; bool configDirty=false, sdMounted=false; uint32_t lastTouch=0;
 
 void saveDeck(){ fs::File f=LittleFS.open(CONFIG,"w"); if(!f) return; serializeJson(deck,f); f.close(); configDirty=false; }
+void saveToggleStates(){ DynamicJsonDocument states(2048); JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"]; for(JsonObject p:pages) for(JsonObject b:p["buttons"].as<JsonArray>()) if(b["toggle"]|false){ const char* id=b["id"]|""; if(*id) states[id]=b["state"]|false; } fs::File f=LittleFS.open(STATE,"w"); if(!f)return; serializeJson(states,f); f.close(); configDirty=false; }
+void applyToggleStates(){ fs::File f=LittleFS.open(STATE,"r"); if(!f)return; DynamicJsonDocument states(2048); if(deserializeJson(states,f)==DeserializationError::Ok){ JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"]; for(JsonObject p:pages) for(JsonObject b:p["buttons"].as<JsonArray>()){ const char* id=b["id"]|""; if(*id&&states.containsKey(id)) b["state"]=states[id].as<bool>(); } } f.close(); }
 void defaultDeck(){ deck.clear(); deck["version"]=1; deck["deviceName"]="CYD Deck"; deck["theme"]="Dark"; deck["brightness"]=180; JsonArray profiles=deck.createNestedArray("profiles"); JsonObject p=profiles.createNestedObject(); p["name"]="Default"; JsonArray pages=p.createNestedArray("pages"); JsonObject home=pages.createNestedObject(); home["name"]="Home"; home.createNestedArray("buttons"); deck["activeProfile"]=0; saveDeck(); }
 bool loadDeckFromSD(){ sdSPI.begin(18,19,23,SD_CARD_CS); sdMounted=SD.begin(SD_CARD_CS,sdSPI,10000000); if(!sdMounted) return false; fs::File f=SD.open("/deck.deck",FILE_READ); if(!f) return false; DynamicJsonDocument candidate(24576); DeserializationError err=deserializeJson(candidate,f); f.close(); if(err) return false; deck=candidate; saveDeck(); return true; }
 JsonObject currentPage(){ return deck["profiles"][deck["activeProfile"] | 0]["pages"][pageIndex]; }
@@ -114,7 +116,18 @@ void openOnWindows(const String& target){
 
 // Parse a shortcut string like "Ctrl+Shift+C" into a modifier byte + keycode and send it.
 // Supported modifiers: Ctrl, Shift, Alt, Win (case-insensitive). Key must be last token.
-void sendShortcut(const String& shortcut) {
+bool punctKey(char c,uint8_t &key,uint8_t &mod){ switch(c){
+  case ' ':key=0x2C;break; case '.':key=0x37;break; case '\\':key=0x31;break; case '/':key=0x38;break; case '-':key=0x2D;break;
+  case '_':key=0x2D;mod|=0x02;break; case ':':key=0x33;mod|=0x02;break; case ';':key=0x33;break; case '(':key=0x26;mod|=0x02;break;
+  case ')':key=0x27;mod|=0x02;break; case '?':key=0x38;mod|=0x02;break; case '&':key=0x24;mod|=0x02;break; case '=':key=0x2E;break;
+  case '#':key=0x20;mod|=0x02;break; case '%':key=0x22;mod|=0x02;break; case '+':key=0x2E;mod|=0x02;break; case '@':key=0x1F;mod|=0x02;break;
+  case ',':key=0x36;break; case '\'':key=0x34;break; case '"':key=0x34;mod|=0x02;break; case '!':key=0x1E;mod|=0x02;break;
+  case '~':key=0x35;mod|=0x02;break; case '`':key=0x35;break; case '[':key=0x2F;break; case ']':key=0x30;break;
+  case '{':key=0x2F;mod|=0x02;break; case '}':key=0x30;mod|=0x02;break; case '<':key=0x36;mod|=0x02;break; case '>':key=0x37;mod|=0x02;break;
+  case '|':key=0x31;mod|=0x02;break; case '*':key=0x25;mod|=0x02;break; case '^':key=0x23;mod|=0x02;break; case '$':key=0x21;mod|=0x02;break;
+  default:return false; } return true; }
+
+void sendSingleShortcut(const String& shortcut) {
   uint8_t mod=0; String s=shortcut; s.trim();
   // Walk tokens separated by '+', collect modifiers, last token is the key.
   String tokens[8]; uint8_t count=0;
@@ -137,7 +150,11 @@ void sendShortcut(const String& shortcut) {
   }
   // Last token is the key.
   String k=tokens[count-1]; k.trim();
-  uint8_t key=0;
+  uint8_t key=0; String kl=k; kl.toLowerCase();
+  if(kl=="ctrl"||kl=="control"){ mod|=0x01; sendKey(mod,0); return; }
+  if(kl=="shift"){ mod|=0x02; sendKey(mod,0); return; }
+  if(kl=="alt"){ mod|=0x04; sendKey(mod,0); return; }
+  if(kl=="win"||kl=="gui"||kl=="super"){ mod|=0x08; sendKey(mod,0); return; }
   if(k.length()==1){
     char c=k[0];
     if(c>='a'&&c<='z')      key=0x04 + c - 'a';
@@ -146,15 +163,17 @@ void sendShortcut(const String& shortcut) {
     else if(c=='0')          key=0x27;
     else {
       // Single punctuation — reuse typeText logic via a one-char string
-      typeText(k); return;
+      if(!punctKey(c,key,mod)){ Serial.print("sendShortcut: unsupported key: "); Serial.println(k); return; }
     }
   } else {
     // Named keys
-    String kl=k; kl.toLowerCase();
     if(kl=="f1")  key=0x3A; else if(kl=="f2")  key=0x3B; else if(kl=="f3")  key=0x3C;
     else if(kl=="f4")  key=0x3D; else if(kl=="f5")  key=0x3E; else if(kl=="f6")  key=0x3F;
     else if(kl=="f7")  key=0x40; else if(kl=="f8")  key=0x41; else if(kl=="f9")  key=0x42;
     else if(kl=="f10") key=0x43; else if(kl=="f11") key=0x44; else if(kl=="f12") key=0x45;
+    else if(kl=="f13") key=0x68; else if(kl=="f14") key=0x69; else if(kl=="f15") key=0x6A; else if(kl=="f16") key=0x6B;
+    else if(kl=="f17") key=0x6C; else if(kl=="f18") key=0x6D; else if(kl=="f19") key=0x6E; else if(kl=="f20") key=0x6F;
+    else if(kl=="f21") key=0x70; else if(kl=="f22") key=0x71; else if(kl=="f23") key=0x72; else if(kl=="f24") key=0x73;
     else if(kl=="enter"||kl=="return") key=0x28;
     else if(kl=="esc"||kl=="escape")   key=0x29;
     else if(kl=="tab")    key=0x2B;
@@ -165,10 +184,27 @@ void sendShortcut(const String& shortcut) {
     else if(kl=="left")   key=0x50; else if(kl=="right") key=0x4F;
     else if(kl=="home")   key=0x4A; else if(kl=="end")   key=0x4D;
     else if(kl=="pgup")   key=0x4B; else if(kl=="pgdn")  key=0x4E;
-    else if(kl=="print"||kl=="prtsc")  key=0x46;
+    else if(kl=="insert"||kl=="ins") key=0x49; else if(kl=="print"||kl=="prtsc"||kl=="printscreen") key=0x46;
+    else if(kl=="scrolllock") key=0x47; else if(kl=="pause"||kl=="break") key=0x48;
+    else if(kl=="capslock") key=0x39; else if(kl=="numlock") key=0x53; else if(kl=="menu"||kl=="application") key=0x65;
+    else if(kl=="numpad0"||kl=="kp0") key=0x62; else if(kl=="numpad1"||kl=="kp1") key=0x59; else if(kl=="numpad2"||kl=="kp2") key=0x5A; else if(kl=="numpad3"||kl=="kp3") key=0x5B; else if(kl=="numpad4"||kl=="kp4") key=0x5C; else if(kl=="numpad5"||kl=="kp5") key=0x5D; else if(kl=="numpad6"||kl=="kp6") key=0x5E; else if(kl=="numpad7"||kl=="kp7") key=0x5F; else if(kl=="numpad8"||kl=="kp8") key=0x60; else if(kl=="numpad9"||kl=="kp9") key=0x61;
+    else if(kl=="numpad+"||kl=="kp+") key=0x57; else if(kl=="numpad-"||kl=="kp-") key=0x56; else if(kl=="numpad*"||kl=="kp*") key=0x55; else if(kl=="numpad/"||kl=="kp/") key=0x54; else if(kl=="numpad."||kl=="kp.") key=0x63; else if(kl=="numpadenter"||kl=="kpenter") key=0x58;
     else { Serial.print("sendShortcut: unknown key: "); Serial.println(k); return; }
   }
   sendKey(mod, key);
+}
+
+// A comma-separated action is a sequence, for example: Ctrl+C, Ctrl+V.
+void sendShortcut(const String& shortcuts) {
+  int start=0;
+  for(int i=0;i<=shortcuts.length();i++){
+    if(i==shortcuts.length()||shortcuts[i]==','){
+      String shortcut=shortcuts.substring(start,i); shortcut.trim();
+      if(shortcut.length()) sendSingleShortcut(shortcut);
+      start=i+1;
+      delay(25);
+    }
+  }
 }
 
 void executeButton(JsonObject b) {
@@ -178,8 +214,7 @@ void executeButton(JsonObject b) {
     JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"];
     for(uint8_t i=0;i<pages.size();i++){
       if(target==String(pages[i]["name"]|"")){
-        // Bounds-check before pushing onto the stack.
-        if(folderDepth<8) pageStack[folderDepth++]=String(currentPage()["name"]|"");
+        folderDepth++;
         pageIndex=i; drawDeck(); return;
       }
     }
@@ -203,7 +238,7 @@ static uint8_t keyboardReportMap[] = {
   0x15,0x00,0x25,0x01,0x75,0x01,0x95,0x08,0x81,0x02,0x95,0x01,0x75,0x08,
   0x81,0x01,0x95,0x05,0x75,0x01,0x05,0x08,0x19,0x01,0x29,0x05,0x91,0x02,
   0x95,0x01,0x75,0x03,0x91,0x01,0x95,0x06,0x75,0x08,0x15,0x00,0x25,0x65,
-  0x05,0x07,0x19,0x00,0x29,0x65,0x81,0x00,0xC0
+  0x05,0x07,0x19,0x00,0x29,0x73,0x81,0x00,0xC0
 };
 void startBLE(){
   NimBLEDevice::init(BLE_NAME);
@@ -232,11 +267,11 @@ void startBLE(){
   advertising->addServiceUUID(hid->getHidService()->getUUID());
   advertising->start();
 }
-void setup(){ Serial.begin(115200); pinMode(BACKLIGHT_PIN,OUTPUT); digitalWrite(BACKLIGHT_PIN,HIGH); tft.init(); tft.setRotation(1); tft.invertDisplay(false); touchSPI.begin(TOUCH_SCK,TOUCH_MISO,TOUCH_MOSI,TOUCH_CS); touch.begin(touchSPI); touch.setRotation(1); if(!LittleFS.begin(true)) { tft.println("LittleFS failed"); return; } fs::File f=LittleFS.open(CONFIG,"r"); if(f){ if(deserializeJson(deck,f)!=DeserializationError::Ok)defaultDeck(); f.close(); } else { defaultDeck(); welcome(); } loadDeckFromSD();
+void setup(){ Serial.begin(115200); pinMode(BACKLIGHT_PIN,OUTPUT); digitalWrite(BACKLIGHT_PIN,HIGH); tft.init(); tft.setRotation(1); tft.invertDisplay(false); touchSPI.begin(TOUCH_SCK,TOUCH_MISO,TOUCH_MOSI,TOUCH_CS); touch.begin(touchSPI); touch.setRotation(1); if(!LittleFS.begin(true)) { tft.println("LittleFS failed"); return; } fs::File f=LittleFS.open(CONFIG,"r"); if(f){ if(deserializeJson(deck,f)!=DeserializationError::Ok)defaultDeck(); f.close(); } else { defaultDeck(); welcome(); } loadDeckFromSD(); applyToggleStates();
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcAttach(BACKLIGHT_PIN,5000,8); ledcWrite(BACKLIGHT_PIN,deck["brightness"]|180);
 #else
   ledcSetup(0,5000,8); ledcAttachPin(BACKLIGHT_PIN,0); ledcWrite(0,deck["brightness"]|180);
 #endif
   startBLE(); drawDeck(); }
-void loop(){ handleTouch(); if(configDirty)saveDeck(); delay(8); }
+void loop(){ handleTouch(); if(configDirty)saveToggleStates(); delay(8); }
