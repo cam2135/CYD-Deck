@@ -12,7 +12,7 @@ A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press 
 - Supports **folders** — tap a folder button to open a sub-page; **Home** returns to the root page in one tap
 - Multiple pages and profiles, all configured visually in the editor
 - Connects to Windows as a standard BLE HID keyboard — no drivers needed
-- Config is stored on an SD card as a plain `deck.deck` JSON file
+- Deck files use a plain `deck.deck` JSON format and are transferred with an SD card
 
 ---
 
@@ -77,6 +77,17 @@ This is the most important step. TFT_eSPI needs to know your display's pin layou
 
 On first boot you'll see a welcome screen. Insert your SD card and the deck will load automatically.
 
+### 6. Load a deck from an SD card
+
+1. Format a microSD card as **FAT32**.
+2. In the editor, choose **Write SD card**, then choose the root of that card.
+3. Confirm that the card contains a file named exactly `deck.deck` in its root folder. Do not put it inside another folder.
+4. Turn on or restart the CYD with the card inserted. The device imports the deck automatically.
+
+After the import, the CYD saves the deck in its own internal flash memory. You can remove the card and the deck will keep working after power is removed or the device is restarted. The SD card is only needed when you want to transfer a new deck to the CYD.
+
+You can also leave the card inserted. In that case, `deck.deck` is imported again every time the CYD starts. That is useful when testing changes, but remember to use **Write SD card** after editing or the older file on the card will replace the device's saved deck at the next restart.
+
 ---
 
 ## Editor setup
@@ -102,11 +113,6 @@ py CYDDeckEditor.py
 ### Pages
 
 Pages are listed in the left sidebar. Click a page to switch to it.
-
-Each page has a **⋯** button that lets you:
-- **Rename** the page
-- **Move up / Move down** to reorder
-- **Delete** the page
 
 Use **+ Add page** at the bottom of the list to create a new blank page.
 
@@ -140,6 +146,15 @@ In the editor:
 | Open Folder | Opens a folder in Explorer |
 | Folder | Navigates to another page on the CYD |
 
+### Recording a keyboard shortcut
+
+1. Select a button and set its type to **Keyboard Shortcut**.
+2. Click **Record shortcut** in the Inspector.
+3. Press one or more key combinations, such as `Ctrl+C` followed by `Ctrl+V`.
+4. Press **Esc**, then **Tab** to save the recorded sequence.
+
+You can also type shortcuts directly in **Action / value**. Separate each shortcut with a comma, for example `Ctrl+C, Ctrl+V`. The firmware supports `Ctrl`, `Shift`, `Alt`, and `Win`, plus letters, numbers, F1-F12, arrows, Enter, Tab, Delete, Home, End, Page Up, and Page Down.
+
 ### Saving
 
 | Action | Shortcut |
@@ -148,7 +163,14 @@ In the editor:
 | Save As | `Ctrl+Shift+S` |
 | Write to SD card | Toolbar button |
 
-**Save** stores a `.deck` file anywhere on your PC. **Write SD card** copies `deck.deck` to the root of your SD card so the CYD picks it up on next boot.
+**Save** stores a `.deck` file anywhere on your PC. It is a backup/editing copy and does not change the CYD by itself. **Write SD card** copies the current deck to the root of your SD card as `deck.deck`; restart the CYD with that card inserted to import it.
+
+Recommended workflow:
+
+1. Save your deck on the PC as a backup.
+2. Use **Write SD card**.
+3. Insert the card in the CYD and restart it.
+4. Wait for the deck to load, then remove the card if you do not need it installed.
 
 ---
 
@@ -192,6 +214,12 @@ Make sure NimBLE-Arduino is installed. Also check that your PC's Bluetooth is on
 
 **SD card not detected**
 Format as FAT32. File must be named exactly `deck.deck` in the root of the card.
+
+**My changes disappear after a restart**
+If the SD card stays in the CYD, its `deck.deck` file is imported on every boot. Write the updated deck to the card again, or remove the card after the CYD has imported the version you want.
+
+**A button types into the wrong place**
+The CYD acts like a Bluetooth keyboard. Click the app or text field you want to control before pressing the button. Application, website, file, and folder buttons open Windows Run first, then type the configured value and press Enter.
 
 **Editor won't start**
 Run `py -m pip install customtkinter tkinterdnd2` and try again.
