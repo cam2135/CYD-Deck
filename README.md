@@ -2,6 +2,8 @@
 
 A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press buttons on the touchscreen to trigger keyboard shortcuts, open apps, navigate websites, and more — all over Bluetooth LE. Configure everything from the included Windows editor app.
 
+![CYD Deck running on the display showing the Home page with Games, Websites and MISC folder buttons](img/20260805_232014.jpg)
+
 ---
 
 ## What it does
@@ -22,6 +24,7 @@ A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press 
 | MicroSD card | Any size, FAT32 formatted |
 | USB-C cable | For flashing |
 | Windows PC | For the editor and BLE pairing |
+| Desktop stand (optional) | [2.8" CYD stand on Printables](https://www.printables.com/model/1166980-28-inch-cheap-yellow-display-cyd-desktop-stand) — 3D printable |
 
 ---
 
