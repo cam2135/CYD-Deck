@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "deviceName": "CYD Deck",
+  "theme": "Dark",
+  "brightness": 180,
+  "wallpaper": "",
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Default",
+      "pages": [
+        {
+          "name": "Home",
+          "wallpaper": "",
+          "buttons": [
+            {
+              "id": "60ad27b3-f838-46f3-bd0d-f1d746119c33",
+              "name": "Cmd",
+              "type": "Application",
+              "action": "cmd",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "f9242163-923b-4520-bb4b-30a57f3ad0f8",
+              "name": "Notepad",
+              "type": "Application",
+              "action": "notepad",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "130148f0-5551-4f40-89e2-7059b54f787a",
+              "name": "PowerShell",
+              "type": "Application",
+              "action": "PowerShell",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "70ce8321-fcd6-4f56-bf86-1be0e0438583",
+              "name": "Calculator ",
+              "type": "Application",
+              "action": "calc",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "8be820cc-3a1e-4e3d-8796-2a310c720e36",
+              "name": "Control Panel",
+              "type": "Application",
+              "action": "control",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "83e1040a-6099-425f-98c2-40931e9f9d34",
+              "name": "Log off",
+              "type": "Application",
+              "action": "logoff",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "cc8836c4-8280-4f52-b3f4-a4c53aa32150",
+              "name": "docks",
+              "type": "Application",
+              "action": "documents",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            },
+            {
+              "id": "713b44eb-d59a-4d21-b399-ac7fe52815e5",
+              "name": "vids",
+              "type": "Application",
+              "action": "videos",
+              "icon": "",
+              "toggle": false,
+              "toggleName": "",
+              "toggleAction": "",
+              "folder": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "activeProfile": 0
+}

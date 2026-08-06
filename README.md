@@ -1,0 +1,203 @@
+# CYD Deck
+
+A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press buttons on the touchscreen to trigger keyboard shortcuts, open apps, navigate websites, and more — all over Bluetooth LE. Configure everything from the included Windows editor app.
+
+---
+
+## What it does
+
+- 8 touch buttons per page, laid out in a 4×2 grid
+- Supports **folders** — tap a folder button to open a sub-page, tap **< Home** to go back
+- Multiple pages and profiles, all configured visually in the editor
+- Connects to Windows as a standard BLE HID keyboard — no drivers needed
+- Config is stored on an SD card as a plain `deck.deck` JSON file
+
+---
+
+## Hardware required
+
+| Part | Notes |
+|---|---|
+| ESP32-2432S028 | The "Cheap Yellow Display" — [buy on Amazon](https://www.amazon.com/dp/B0FCXDVBVZ/) |
+| MicroSD card | Any size, FAT32 formatted |
+| USB-C cable | For flashing |
+| Windows PC | For the editor and BLE pairing |
+
+---
+
+## Software setup
+
+### 1. Arduino IDE
+
+Download and install [Arduino IDE 2.x](https://www.arduino.cc/en/software).
+
+### 2. ESP32 board package
+
+In Arduino IDE go to **File → Preferences** and add this URL to *Additional boards manager URLs*:
+
+```
+https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+```
+
+Then go to **Tools → Board → Boards Manager**, search `esp32` and install **esp32 by Espressif Systems**.
+
+### 3. Required libraries
+
+Install all of these via **Tools → Manage Libraries**:
+
+| Library | Author |
+|---|---|
+| TFT_eSPI | Bodmer |
+| XPT2046_Touchscreen | Paul Stoffregen |
+| NimBLE-Arduino | h2zero |
+| ArduinoJson | Benoit Blanchon |
+| LittleFS (ESP32) | lorol (built into esp32 core v2+) |
+
+### 4. Configure TFT_eSPI for the CYD
+
+This is the most important step. TFT_eSPI needs to know your display's pin layout.
+
+1. Copy **`Setup(LOOK AT ME)/User_Setup_Select.h`** into your Arduino libraries folder:
+   ```
+   C:\Users\YourName\Documents\Arduino\libraries\TFT_eSPI\User_Setup_Select.h
+   ```
+   Replace the existing file. See [`Setup(LOOK AT ME)/readme.md`](Setup(LOOK%20AT%20ME)/readme.md) for details.
+
+2. The `CYDDeck.ino` sketch already has all the correct pin numbers for the ESP32-2432S028 — you don't need to change anything else.
+
+### 5. Flash the firmware
+
+1. Open `CYDDeck/CYDDeck.ino` in Arduino IDE
+2. Select board: **ESP32 Dev Module**
+3. Select the correct COM port
+4. Click **Upload**
+
+On first boot you'll see a welcome screen. Insert your SD card and the deck will load automatically.
+
+---
+
+## Editor setup
+
+The editor runs on Windows and requires Python 3.10+.
+
+### Install dependencies
+
+```bash
+py -m pip install customtkinter bleak pillow tkinterdnd2
+```
+
+### Run the editor
+
+```bash
+py CYDDeckEditor.py
+```
+
+---
+
+## Editor usage
+
+### Pages
+
+Pages are listed in the left sidebar. Click a page to switch to it.
+
+Each page has a **⋯** button that lets you:
+- **Rename** the page
+- **Move up / Move down** to reorder
+- **Delete** the page
+
+Use **+ Add page** at the bottom of the list to create a new blank page.
+
+### Buttons
+
+Each page holds up to **8 buttons** in a 4×2 grid.
+
+- **+ Button** — adds a new blank button
+- **+ Folder** — creates a folder button and a linked page in one step
+- **Import app / shortcut** — import `.exe`, `.lnk`, or `.url` files directly from Windows
+
+Click a button to select it and edit it in the **Inspector** on the right.
+
+### Folders
+
+A Folder button navigates to another page on the CYD when tapped. On the device, a **< Home** button appears in the top-right corner so you can go back.
+
+In the editor:
+- Double-click a folder card to jump to its page
+- Use **← Back** in the page header to go back to the parent
+- The Inspector lets you pick which page the folder links to, or create a new one
+
+### Button types
+
+| Type | What it does |
+|---|---|
+| Keyboard Shortcut | Sends a key combo (e.g. `Ctrl+C`) |
+| Application | Opens an app via the Windows Run dialog |
+| Website | Opens a URL in the default browser |
+| Open File | Opens a file path |
+| Open Folder | Opens a folder in Explorer |
+| Folder | Navigates to another page on the CYD |
+| Macro | Sends a sequence of keys |
+| Media / Volume | Media playback and volume controls |
+| Lock PC / Sleep / Restart / Shutdown | System actions |
+
+### Saving
+
+| Action | Shortcut |
+|---|---|
+| Save | `Ctrl+S` |
+| Save As | `Ctrl+Shift+S` |
+| Write to SD card | Toolbar button |
+
+**Save** stores a `.deck` file anywhere on your PC. **Write SD card** copies `deck.deck` to the root of your SD card so the CYD picks it up on next boot.
+
+---
+
+## File structure
+
+```
+CYDDeck_Project/
+├── CYDDeck/
+│   └── CYDDeck.ino          # Arduino firmware
+├── Setup(LOOK AT ME)/
+│   ├── readme.md            # TFT_eSPI setup instructions
+│   └── User_Setup_Select.h  # Pre-configured TFT_eSPI header
+├── CYDDeckEditor.py         # Windows configuration editor
+├── deck.deck                # Example deck config (JSON)
+└── README.md                # This file
+```
+
+---
+
+## BLE pairing
+
+1. Power on the CYD
+2. On Windows, go to **Settings → Bluetooth → Add device**
+3. Select **CYD Deck**
+4. No PIN required — it pairs automatically
+
+The CYD uses a stable static BLE address derived from the chip's MAC, so Windows won't create duplicate entries after a reboot.
+
+---
+
+## Troubleshooting
+
+**Display shows nothing / garbled**
+Make sure you replaced `User_Setup_Select.h` in the TFT_eSPI library folder. See the Setup folder.
+
+**Touch is offset or inverted**
+Touch calibration values are in `handleTouch()` in the `.ino`. Adjust the `map()` ranges if your CYD revision has different touch limits.
+
+**BLE doesn't appear on Windows**
+Make sure NimBLE-Arduino is installed. Also check that your PC's Bluetooth is on and not already paired to another "CYD Deck" entry — remove old pairings first.
+
+**SD card not detected**
+Format as FAT32. File must be named exactly `deck.deck` in the root of the card.
+
+**Editor won't start**
+Run `py -m pip install customtkinter bleak pillow` and try again.
+
+---
+
+## License
+
+MIT — do whatever you want with it.
