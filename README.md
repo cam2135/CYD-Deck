@@ -1,5 +1,8 @@
 # CYD Deck
 
+[![CodeFactor](https://www.codefactor.io/repository/github/cam2135/cyd-deck/badge)](https://www.codefactor.io/repository/github/cam2135/cyd-deck)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press buttons on the touchscreen to trigger keyboard shortcuts, open apps, navigate websites, and more — all over Bluetooth LE. Configure everything from the included Windows editor app.
 
 ![CYD Deck running on the display showing the Home page with Games, Websites and MISC folder buttons](img/20260805_232014.jpg)
