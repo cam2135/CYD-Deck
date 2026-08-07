@@ -19,7 +19,26 @@ jobs:
       - name: Verify Python formatting
         run: python -m black --check CYDDeckEditor.py
       - name: Check Python, INO, and header sources
-        run: python scripts/check_quality.py
+        run: |
+          python -m py_compile CYDDeckEditor.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          editor = Path("CYDDeckEditor.py")
+          tree = ast.parse(editor.read_text(encoding="utf-8"))
+          if "Editor" not in {node.name for node in tree.body if isinstance(node, ast.ClassDef)}:
+              raise SystemExit("Editor class is missing")
+
+          sources = [path for path in Path(".").rglob("*") if path.suffix.lower() in {".ino", ".h"}]
+          if not any(path.name == "CYDDeck.ino" for path in sources):
+              raise SystemExit("CYDDeck/CYDDeck.ino is missing")
+          for path in sources:
+              source = path.read_text(encoding="utf-8", errors="replace")
+              if not source.strip():
+                  raise SystemExit(f"{path} is empty")
+          print("Python, INO, and header source checks passed.")
+          PY
 
   firmware-build:
     name: ESP32 firmware build
