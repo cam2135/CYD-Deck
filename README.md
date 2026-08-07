@@ -1,6 +1,5 @@
 # CYD Deck
 
-# CYD Deck
 
 [![Code Quality](../../actions/workflows/check.yml/badge.svg)](../../actions/workflows/check.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/cam2135/cyd-deck/badge)](https://www.codefactor.io/repository/github/cam2135/cyd-deck)
