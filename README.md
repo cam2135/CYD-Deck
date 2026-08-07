@@ -1,6 +1,6 @@
 # CYD Deck
 
-[![Code Quality](../../actions/workflows/check.yml/badge.svg)](../../actions/workflows/check.yml)
+[![Code uality](../../actions/workflows/check.yml/badge.svg)](../../actions/workflows/check.yml)
 
 [![CodeFactor](https://www.codefactor.io/repository/github/cam2135/cyd-deck/badge)](https://www.codefactor.io/repository/github/cam2135/cyd-deck)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
