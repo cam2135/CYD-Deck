@@ -1,0 +1,21 @@
+name: Code Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-quality:
+    name: Python quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install formatter
+        run: python -m pip install black
+      - name: Verify Python formatting
+        run: python -m black --check CYDDeckEditor.py
+      - name: Check syntax and maintainability
+        run: python scripts/check_quality.py
