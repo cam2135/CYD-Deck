@@ -1,9 +1,17 @@
 # CYD Deck
 
-[![Code Quality](../../actions/workflows/check.yml/badge.svg)](../../actions/workflows/check.yml)
+# CYD Deck
 
+[![Code Quality](../../actions/workflows/check.yml/badge.svg)](../../actions/workflows/check.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/cam2135/cyd-deck/badge)](https://www.codefactor.io/repository/github/cam2135/cyd-deck)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Languages
+
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white&style=for-the-badge)
+![C++](https://img.shields.io/badge/C++-00599C?logo=c%2B%2B&logoColor=white&style=for-the-badge)
+![C%23](https://img.shields.io/badge/C%23-239120?logo=csharp&logoColor=white&style=for-the-badge)
+
 
 A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press buttons on the touchscreen to trigger keyboard shortcuts, open apps, navigate websites, and more — all over Bluetooth LE. Configure everything from the included Windows editor app.
 
