@@ -338,6 +338,7 @@ class Editor(ctk.CTk):
             text=self.current_page["name"],
             font=ctk.CTkFont(size=22, weight="bold"),
         ).pack(side="left")
+        self._draw_page_controls(head)
         ctk.CTkButton(
             head, text="Import app / shortcut", width=145, command=self.import_apps
         ).pack(side="right", padx=(6, 0))
@@ -359,6 +360,34 @@ class Editor(ctk.CTk):
                 text_color="#888",
                 font=ctk.CTkFont(size=11),
             ).pack(side="right", padx=(0, 6))
+
+    def _draw_page_controls(self, parent):
+        pages = self.profile["pages"]
+        controls = ctk.CTkFrame(parent, fg_color="transparent")
+        controls.pack(side="left", padx=(10, 0))
+        ctk.CTkButton(
+            controls,
+            text="Move up",
+            width=72,
+            command=lambda: self._move_page(self.page, -1),
+            state="normal" if self.page > 0 else "disabled",
+        ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            controls,
+            text="Move down",
+            width=88,
+            command=lambda: self._move_page(self.page, 1),
+            state="normal" if self.page < len(pages) - 1 else "disabled",
+        ).pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            controls,
+            text="Delete",
+            width=68,
+            fg_color="#a33",
+            hover_color="#822",
+            command=lambda: self._delete_page(self.page),
+            state="normal" if len(pages) > 1 else "disabled",
+        ).pack(side="left")
 
     def _draw_grid_buttons(self):
         grid = ctk.CTkFrame(self.center, fg_color="transparent")
@@ -695,7 +724,8 @@ class Editor(ctk.CTk):
             messagebox.showinfo("Cannot delete", "You need at least one page.")
             return
         if not messagebox.askyesno(
-            "Delete page", f'Delete "{pages[idx]["name"]}" and all its buttons?'
+            "Delete page",
+            f'Do you really want to delete "{pages[idx]["name"]}" and all its buttons?',
         ):
             return
         self.snapshot()
