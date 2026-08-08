@@ -228,7 +228,7 @@ void executeButton(JsonObject b) {
   }
   drawDeck();
 }
-void handleTouch(){ if(!touch.touched()||millis()-lastTouch<180)return; TS_Point p=touch.getPoint(); lastTouch=millis(); int x=map(p.x,200,3700,0,320),y=map(p.y,240,3800,0,240); if(x<0||x>320||y<0)return; if(touchHomeButton(x,y))return; if(y<31)return; int col=x/80,row=(y-31)/103; if(col>3||row>1)return; int n=row*4+col; JsonArray b=currentPage()["buttons"].as<JsonArray>(); if(n<b.size()) executeButton(b[n]); }
+void handleTouch(){ if(!touch.touched()||millis()-lastTouch<180)return; TS_Point p=touch.getPoint(); lastTouch=millis(); int x=map(p.x,200,3700,0,320),y=map(p.y,240,3800,0,240); if(x<0||x>320||y<0)return; if(touchHomeButton(x,y))return; if(x<4||y<31)return; int col=(x-4)/79,row=(y-31)/103; if(col>3||row>1)return; int buttonX=4+col*79,buttonY=31+row*103; if(x>buttonX+72||y>buttonY+94)return; int n=row*4+col; JsonArray b=currentPage()["buttons"].as<JsonArray>(); if(n<b.size()) executeButton(b[n]); }
 
 void welcome(){ tft.fillScreen(TFT_BLACK); tft.setTextDatum(MC_DATUM); tft.setTextColor(TFT_YELLOW,TFT_BLACK); tft.setTextSize(2); tft.drawString("Welcome to CYD Deck",160,90); tft.setTextSize(1); tft.drawString("Insert SD card with deck.deck",160,125); delay(1500); }
 // Standard boot-keyboard report. Windows therefore lists this as one keyboard,
