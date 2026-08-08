@@ -35,7 +35,7 @@ A DIY Stream Deck built on the **ESP32-2432S028 (Cheap Yellow Display)**. Press 
 ## Hardware required
 
 | Part | Notes |
-|---|---|
+|---|---|---|
 | ESP32-2432S028 | The "Cheap Yellow Display" — [buy on Amazon](https://www.amazon.com/dp/B0FCXDVBVZ/) |
 | MicroSD card | Any size, FAT32 formatted |
 | USB-C cable | For flashing |
@@ -64,13 +64,13 @@ Then go to **Tools → Board → Boards Manager**, search `esp32` and install **
 
 Install all of these via **Tools → Manage Libraries**:
 
-| Library | Author |
-|---|---|
-| TFT_eSPI | Bodmer |
-| XPT2046_Touchscreen | Paul Stoffregen |
-| NimBLE-Arduino | h2zero |
-| ArduinoJson | Benoit Blanchon |
-| LittleFS (ESP32) | lorol (built into esp32 core v2+) |
+| Library | Pinned version | Author |
+|---|---|---|
+| TFT_eSPI | 2.5.43 | Bodmer |
+| XPT2046_Touchscreen | 1.4 | Paul Stoffregen |
+| NimBLE-Arduino | 2.5.0 | h2zero |
+| ArduinoJson | 7.4.3 | Benoit Blanchon |
+| LittleFS (ESP32) | Built into ESP32 core | Espressif |
 
 ### 4. Configure TFT_eSPI for the CYD
 
@@ -187,6 +187,10 @@ Recommended workflow:
 2. Use **Write SD card**.
 3. Insert the card in the CYD and restart it.
 4. Wait for the deck to load, then remove the card if you do not need it installed.
+
+### Theme and brightness
+
+The editor saves your selected theme and brightness into the deck file. The CYD applies both settings during startup, so restart the device after importing an updated deck to see the change.
 
 ---
 
