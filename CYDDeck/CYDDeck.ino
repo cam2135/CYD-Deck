@@ -26,8 +26,19 @@ SPIClass touchSPI(HSPI);
 SPIClass sdSPI(VSPI);
 int pageIndex=0, folderDepth=0; bool configDirty=false, sdMounted=false; uint32_t lastTouch=0;
 
-void saveDeck(){ fs::File f=LittleFS.open(CONFIG,"w"); if(!f) return; serializeJson(deck,f); f.close(); configDirty=false; }
-void saveToggleStates(){ DynamicJsonDocument states(2048); JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"]; for(JsonObject p:pages) for(JsonObject b:p["buttons"].as<JsonArray>()) if(b["toggle"]|false){ const char* id=b["id"]|""; if(*id) states[id]=b["state"]|false; } fs::File f=LittleFS.open(STATE,"w"); if(!f)return; serializeJson(states,f); f.close(); configDirty=false; }
+void saveDeck(){
+  fs::File f=LittleFS.open(CONFIG,"w");
+  if(!f){ Serial.println("saveDeck: LittleFS.open failed — skipping, flag cleared"); configDirty=false; return; }
+  serializeJson(deck,f); f.close(); configDirty=false;
+}
+void saveToggleStates(){
+  DynamicJsonDocument states(2048);
+  JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"];
+  for(JsonObject p:pages) for(JsonObject b:p["buttons"].as<JsonArray>()) if(b["toggle"]|false){ const char* id=b["id"]|""; if(*id) states[id]=b["state"]|false; }
+  fs::File f=LittleFS.open(STATE,"w");
+  if(!f){ Serial.println("saveToggleStates: LittleFS.open failed — skipping, flag cleared"); configDirty=false; return; }
+  serializeJson(states,f); f.close(); configDirty=false;
+}
 void applyToggleStates(){ fs::File f=LittleFS.open(STATE,"r"); if(!f)return; DynamicJsonDocument states(2048); if(deserializeJson(states,f)==DeserializationError::Ok){ JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"]; for(JsonObject p:pages) for(JsonObject b:p["buttons"].as<JsonArray>()){ const char* id=b["id"]|""; if(*id&&states.containsKey(id)) b["state"]=states[id].as<bool>(); } } f.close(); }
 void defaultDeck(){ deck.clear(); deck["version"]=1; deck["deviceName"]="CYD Deck"; deck["theme"]="Dark"; deck["brightness"]=180; JsonArray profiles=deck.createNestedArray("profiles"); JsonObject p=profiles.createNestedObject(); p["name"]="Default"; JsonArray pages=p.createNestedArray("pages"); JsonObject home=pages.createNestedObject(); home["name"]="Home"; home.createNestedArray("buttons"); deck["activeProfile"]=0; saveDeck(); }
 bool loadDeckFromSD(){ sdSPI.begin(18,19,23,SD_CARD_CS); sdMounted=SD.begin(SD_CARD_CS,sdSPI,10000000); if(!sdMounted) return false; fs::File f=SD.open("/deck.deck",FILE_READ); if(!f) return false; DynamicJsonDocument candidate(24576); DeserializationError err=deserializeJson(candidate,f); f.close(); if(err) return false; deck=candidate; saveDeck(); return true; }
@@ -49,13 +60,28 @@ bool touchHomeButton(int x, int y) {
   }
   return false;
 }
-void drawButton(int slot, const char* name, const char* type, bool active=false){ int col=slot%4,row=slot/4,x=4+col*79,y=31+row*103; uint16_t bg=active?BLUE:color(deck["theme"]|"Dark"); tft.fillRoundRect(x,y,72,94,10,bg); tft.drawRoundRect(x,y,72,94,10,active?ACCENT:BLUE); tft.setTextDatum(MC_DATUM); tft.setTextColor(TEXT,bg); tft.setTextSize(3); tft.drawString(String(type)=="Folder"?"+":"*",x+36,y+27); tft.setTextSize(1); String n=name; if(n.length()>12)n=n.substring(0,11)+"."; tft.drawString(n,x+36,y+69); }
+void drawButton(int slot, const char* name, const char* type, bool toggled=false, const char* toggleName=""){ int col=slot%4,row=slot/4,x=4+col*79,y=31+row*103; uint16_t bg=toggled?ACCENT:color(deck["theme"]|"Dark"); tft.fillRoundRect(x,y,72,94,10,bg); tft.drawRoundRect(x,y,72,94,10,toggled?TEXT:BLUE); tft.setTextDatum(MC_DATUM); tft.setTextColor(toggled?BG:TEXT,bg); tft.setTextSize(3); tft.drawString(String(type)=="Folder"?"+":"*",x+36,y+27); tft.setTextSize(1); // When toggled on, prefer the toggle label if one is set.
+ String n=(toggled&&toggleName&&*toggleName)?String(toggleName):String(name); if(n.length()>12)n=n.substring(0,11)+"."; tft.drawString(n,x+36,y+69); }
 void drawDeck(){ tft.fillScreen(BG); JsonObject p=currentPage(); title(String(deck["deviceName"]|BLE_NAME)+" - "+String(p["name"]|"Home")); drawHomeButton(); JsonArray b=p["buttons"].as<JsonArray>();
- for(int i=0;i<8;i++){ if(i<b.size()) drawButton(i,b[i]["name"]|"Button",b[i]["type"]|"Custom"); }
+ for(int i=0;i<8;i++){ if(i<b.size()){ bool toggled=(b[i]["toggle"]|false)&&(b[i]["state"]|false); drawButton(i,b[i]["name"]|"Button",b[i]["type"]|"Custom",toggled,b[i]["toggleName"]|""); } }
 }
 // HID keyboard helpers. Windows receives a normal physical-keyboard sequence.
 // A short BLE HID gap keeps input reliable without making long actions sluggish.
 void sendKey(uint8_t modifier,uint8_t key){ if(!keyboardInput)return; uint8_t report[8]={modifier,0,key,0,0,0,0,0}; keyboardInput->setValue(report,sizeof(report)); keyboardInput->notify(); delay(5); uint8_t released[8]={0}; keyboardInput->setValue(released,sizeof(released)); keyboardInput->notify(); delay(8); }
+
+// Single source of truth for all punctuation keycodes.
+// Used by both typeText() and sendSingleShortcut() so the two never drift apart.
+bool punctKey(char c,uint8_t &key,uint8_t &mod){ switch(c){
+  case ' ':key=0x2C;break; case '.':key=0x37;break; case '\\':key=0x31;break; case '/':key=0x38;break; case '-':key=0x2D;break;
+  case '_':key=0x2D;mod|=0x02;break; case ':':key=0x33;mod|=0x02;break; case ';':key=0x33;break; case '(':key=0x26;mod|=0x02;break;
+  case ')':key=0x27;mod|=0x02;break; case '?':key=0x38;mod|=0x02;break; case '&':key=0x24;mod|=0x02;break; case '=':key=0x2E;break;
+  case '#':key=0x20;mod|=0x02;break; case '%':key=0x22;mod|=0x02;break; case '+':key=0x2E;mod|=0x02;break; case '@':key=0x1F;mod|=0x02;break;
+  case ',':key=0x36;break; case '\'':key=0x34;break; case '"':key=0x34;mod|=0x02;break; case '!':key=0x1E;mod|=0x02;break;
+  case '~':key=0x35;mod|=0x02;break; case '`':key=0x35;break; case '[':key=0x2F;break; case ']':key=0x30;break;
+  case '{':key=0x2F;mod|=0x02;break; case '}':key=0x30;mod|=0x02;break; case '<':key=0x36;mod|=0x02;break; case '>':key=0x37;mod|=0x02;break;
+  case '|':key=0x31;mod|=0x02;break; case '*':key=0x25;mod|=0x02;break; case '^':key=0x23;mod|=0x02;break; case '$':key=0x21;mod|=0x02;break;
+  default:return false; } return true; }
+
 void typeText(const String& text){
   for(size_t i=0;i<text.length();i++){
     char c=text[i]; uint8_t mod=0,key=0;
@@ -64,42 +90,10 @@ void typeText(const String& text){
     else if(c>='1'&&c<='9') key=0x1E + c - '1';
     else if(c=='0') key=0x27;
     else {
-      switch(c){
-        case ' ': key=0x2C; break;
-        case '.': key=0x37; break;
-        case '\\':key=0x31; break;
-        case '/': key=0x38; break;
-        case '-': key=0x2D; break;
-        case '_': key=0x2D; mod=0x02; break;
-        case ':': key=0x33; mod=0x02; break;
-        case ';': key=0x33; break;
-        case '(': key=0x26; mod=0x02; break;
-        case ')': key=0x27; mod=0x02; break;
-        // URL and general punctuation
-        case '?': key=0x38; mod=0x02; break;
-        case '&': key=0x24; mod=0x02; break;
-        case '=': key=0x2E; break;
-        case '#': key=0x20; mod=0x02; break;
-        case '%': key=0x22; mod=0x02; break;
-        case '+': key=0x2E; mod=0x02; break;
-        case '@': key=0x1F; mod=0x02; break;
-        case ',': key=0x36; break;
-        case '\'':key=0x34; break;
-        case '"': key=0x34; mod=0x02; break;
-        case '!': key=0x1E; mod=0x02; break;
-        case '~': key=0x35; mod=0x02; break;
-        case '`': key=0x35; break;
-        case '[': key=0x2F; break;
-        case ']': key=0x30; break;
-        case '{': key=0x2F; mod=0x02; break;
-        case '}': key=0x30; mod=0x02; break;
-        case '<': key=0x36; mod=0x02; break;
-        case '>': key=0x37; mod=0x02; break;
-        case '|': key=0x31; mod=0x02; break;
-        case '*': key=0x25; mod=0x02; break;
-        case '^': key=0x23; mod=0x02; break;
-        case '$': key=0x21; mod=0x02; break;
-        default: Serial.print("typeText: skipped char 0x"); Serial.println((uint8_t)c,HEX); continue;
+      // Delegate to punctKey() — single source of truth for all punctuation.
+      if(!punctKey(c,key,mod)){
+        Serial.print("typeText: skipped char 0x"); Serial.println((uint8_t)c,HEX);
+        continue;
       }
     }
     sendKey(mod,key);
@@ -116,17 +110,6 @@ void openOnWindows(const String& target){
 
 // Parse a shortcut string like "Ctrl+Shift+C" into a modifier byte + keycode and send it.
 // Supported modifiers: Ctrl, Shift, Alt, Win (case-insensitive). Key must be last token.
-bool punctKey(char c,uint8_t &key,uint8_t &mod){ switch(c){
-  case ' ':key=0x2C;break; case '.':key=0x37;break; case '\\':key=0x31;break; case '/':key=0x38;break; case '-':key=0x2D;break;
-  case '_':key=0x2D;mod|=0x02;break; case ':':key=0x33;mod|=0x02;break; case ';':key=0x33;break; case '(':key=0x26;mod|=0x02;break;
-  case ')':key=0x27;mod|=0x02;break; case '?':key=0x38;mod|=0x02;break; case '&':key=0x24;mod|=0x02;break; case '=':key=0x2E;break;
-  case '#':key=0x20;mod|=0x02;break; case '%':key=0x22;mod|=0x02;break; case '+':key=0x2E;mod|=0x02;break; case '@':key=0x1F;mod|=0x02;break;
-  case ',':key=0x36;break; case '\'':key=0x34;break; case '"':key=0x34;mod|=0x02;break; case '!':key=0x1E;mod|=0x02;break;
-  case '~':key=0x35;mod|=0x02;break; case '`':key=0x35;break; case '[':key=0x2F;break; case ']':key=0x30;break;
-  case '{':key=0x2F;mod|=0x02;break; case '}':key=0x30;mod|=0x02;break; case '<':key=0x36;mod|=0x02;break; case '>':key=0x37;mod|=0x02;break;
-  case '|':key=0x31;mod|=0x02;break; case '*':key=0x25;mod|=0x02;break; case '^':key=0x23;mod|=0x02;break; case '$':key=0x21;mod|=0x02;break;
-  default:return false; } return true; }
-
 void sendSingleShortcut(const String& shortcut) {
   uint8_t mod=0; String s=shortcut; s.trim();
   // Walk tokens separated by '+', collect modifiers, last token is the key.
@@ -194,11 +177,12 @@ void sendSingleShortcut(const String& shortcut) {
   sendKey(mod, key);
 }
 
-// A comma-separated action is a sequence, for example: Ctrl+C, Ctrl+V.
+// A semicolon-separated action is a sequence, for example: Ctrl+C; Ctrl+V.
+// Semicolon is used instead of comma so that Ctrl+, is a valid single shortcut.
 void sendShortcut(const String& shortcuts) {
   int start=0;
   for(int i=0;i<=shortcuts.length();i++){
-    if(i==shortcuts.length()||shortcuts[i]==','){
+    if(i==shortcuts.length()||shortcuts[i]==';'){
       String shortcut=shortcuts.substring(start,i); shortcut.trim();
       if(shortcut.length()) sendSingleShortcut(shortcut);
       start=i+1;
@@ -209,6 +193,7 @@ void sendShortcut(const String& shortcuts) {
 
 void executeButton(JsonObject b) {
   String type=b["type"]|"", action=b["action"]|"";
+
   if(type=="Folder"){
     String target=b["folder"]|"";
     JsonArray pages=deck["profiles"][deck["activeProfile"]|0]["pages"];
@@ -219,12 +204,25 @@ void executeButton(JsonObject b) {
       }
     }
   }
-  if(type=="Keyboard Shortcut"){ sendShortcut(action); }
-  else if(type=="Application"||type=="Open File"||type=="Open Folder"||type=="Website"){ openOnWindows(action); }
+
+  // If smart toggle is enabled, choose action vs toggleAction based on current state.
+  // state=false means we're about to turn ON  → run the primary action.
+  // state=true  means we're about to turn OFF → run the toggle action (if set).
+  bool isToggle=b["toggle"]|false;
+  bool currentState=b["state"]|false;
+  String effectiveAction = action;
+  if(isToggle && currentState){
+    String ta=b["toggleAction"]|"";
+    if(ta.length()) effectiveAction=ta;
+  }
+
+  if(type=="Keyboard Shortcut"){ sendShortcut(effectiveAction); }
+  else if(type=="Application"||type=="Open File"||type=="Open Folder"||type=="Website"){ openOnWindows(effectiveAction); }
   else if(type!="Folder"){ Serial.print("executeButton: unhandled type: "); Serial.println(type); }
-  if(b["toggle"]|false){
-    bool state=b["state"]|false; b["state"]=!state;
-    configDirty=true; // persist the toggled state across reboots
+
+  if(isToggle){
+    b["state"]=!currentState;   // flip after running the action
+    configDirty=true;
   }
   drawDeck();
 }
@@ -233,11 +231,14 @@ void handleTouch(){ if(!touch.touched()||millis()-lastTouch<180)return; TS_Point
 void welcome(){ tft.fillScreen(TFT_BLACK); tft.setTextDatum(MC_DATUM); tft.setTextColor(TFT_YELLOW,TFT_BLACK); tft.setTextSize(2); tft.drawString("Welcome to CYD Deck",160,90); tft.setTextSize(1); tft.drawString("Insert SD card with deck.deck",160,125); delay(1500); }
 // Standard boot-keyboard report. Windows therefore lists this as one keyboard,
 // called "CYD Deck", rather than a generic/unknown BLE peripheral.
+// Key array: Logical Maximum raised to 0x73 (115) to cover F13-F24 (keycodes
+// 0x68-0x73). Hosts may legally discard values above the declared logical max,
+// so this must be >= the highest keycode we ever send.
 static uint8_t keyboardReportMap[] = {
   0x05,0x01,0x09,0x06,0xA1,0x01,0x85,0x01,0x05,0x07,0x19,0xE0,0x29,0xE7,
   0x15,0x00,0x25,0x01,0x75,0x01,0x95,0x08,0x81,0x02,0x95,0x01,0x75,0x08,
   0x81,0x01,0x95,0x05,0x75,0x01,0x05,0x08,0x19,0x01,0x29,0x05,0x91,0x02,
-  0x95,0x01,0x75,0x03,0x91,0x01,0x95,0x06,0x75,0x08,0x15,0x00,0x25,0x65,
+  0x95,0x01,0x75,0x03,0x91,0x01,0x95,0x06,0x75,0x08,0x15,0x00,0x25,0x73,
   0x05,0x07,0x19,0x00,0x29,0x73,0x81,0x00,0xC0
 };
 void startBLE(){
