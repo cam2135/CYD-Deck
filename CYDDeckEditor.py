@@ -921,12 +921,15 @@ class Editor(ctk.CTk):
 
     def profile_menu(self):
         win = tk.Toplevel(self)
-        win.overrideredirect(True); win.attributes("-topmost", True)
+        win.overrideredirect(True)
+        win.attributes("-topmost", True)
         win.configure(bg="#2b2b2b")
         win.geometry(f"+{self.winfo_pointerx()}+{self.winfo_pointery()}")
 
         def close(): win.destroy()
-        def action(fn): close(); fn()
+        def action(fn):
+            close()
+            fn()
 
         profiles = self.data["profiles"]
         active = self.data["activeProfile"]
@@ -975,7 +978,8 @@ class Editor(ctk.CTk):
             return
         self.snapshot()
         self.data["activeProfile"] = idx
-        self.page = 0; self.selected = None
+        self.page = 0
+        self.selected = None
         self.redraw()
 
     def _new_profile(self):
@@ -993,7 +997,8 @@ class Editor(ctk.CTk):
             }
         )
         self.data["activeProfile"] = len(self.data["profiles"]) - 1
-        self.page = 0; self.selected = None
+        self.page = 0
+        self.selected = None
         self.redraw()
 
     def _rename_profile(self, idx):
@@ -1029,7 +1034,8 @@ class Editor(ctk.CTk):
         profiles.pop(idx)
         active = self.data["activeProfile"]
         self.data["activeProfile"] = min(active, len(profiles) - 1)
-        self.page = 0; self.selected = None
+        self.page = 0
+        self.selected = None
         self.redraw()
 
     def settings(self):
