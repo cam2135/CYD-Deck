@@ -15,7 +15,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install formatter
-        run: python -m pip install black
+        run: python -m pip install black==24.10.0
+      - name: Format Python (auto-fix and commit if needed)
+        run: python -m black CYDDeckEditor.py
       - name: Verify Python formatting
         run: python -m black --check CYDDeckEditor.py
       - name: Check Python, INO, and header sources
