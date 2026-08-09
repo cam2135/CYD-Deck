@@ -205,6 +205,7 @@ CYDDeck_Project/
 │   └── User_Setup_Select.h  # Pre-configured TFT_eSPI header
 ├── CYDDeckEditor.py         # Windows configuration editor
 ├── deck.deck                # Example deck config (JSON)
+├── CONTRIBUTING.md          # How to contribute
 └── README.md                # This file
 ```
 
@@ -243,6 +244,12 @@ The CYD acts like a Bluetooth keyboard. Click the app or text field you want to 
 
 **Editor won't start**
 Run `py -m pip install customtkinter tkinterdnd2` and try again.
+
+---
+
+## Contributing
+
+PRs and bug reports are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started, coding guidelines, and how to add your name to the contributors list.
 
 ---
 
