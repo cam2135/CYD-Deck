@@ -130,7 +130,7 @@ class _ShortcutHandlers:
         self._state.values.append(value)
         self._status.configure(
             text="Recorded: "
-            + ", ".join(self._state.values)
+            + "; ".join(self._state.values)
             + "\nPress Esc, then Tab, to save it."
         )
 
@@ -149,7 +149,7 @@ class _ShortcutHandlers:
         return "+".join(parts + [key])
 
     def _finish(self) -> None:
-        value = ", ".join(self._state.values)
+        value = "; ".join(self._state.values)
         if value and self._btn.get("action") != value:
             self._editor.snapshot()
             self._btn["action"] = value
@@ -540,7 +540,7 @@ class Editor(ctk.CTk):
         ).pack(fill="x", padx=10, pady=(7, 2))
         ctk.CTkLabel(
             self.inspector,
-            text="Record one or more shortcuts. Press Esc, then Tab to finish.",
+            text="Or type manually. Separate multiple shortcuts with ; (e.g. Ctrl+C; Ctrl+,).",
             text_color="#888",
             wraplength=220,
         ).pack(padx=12, pady=(0, 3))
@@ -689,6 +689,13 @@ class Editor(ctk.CTk):
             command=lambda: action(lambda: self._delete_page(idx)),
         ).pack(fill="x", padx=4, pady=(1, 4))
 
+    def _page_name_taken(self, name: str, exclude_idx: int = -1) -> bool:
+        """Return True if name is already used by any page (optionally ignoring exclude_idx)."""
+        for i, p in enumerate(self.profile["pages"]):
+            if i != exclude_idx and p["name"] == name:
+                return True
+        return False
+
     def _rename_page(self, idx):
         pages = self.profile["pages"]
         old = pages[idx]["name"]
@@ -696,6 +703,12 @@ class Editor(ctk.CTk):
             "Rename page", "New name:", initialvalue=old, parent=self
         )
         if not new or new == old:
+            return
+        if self._page_name_taken(new, exclude_idx=idx):
+            messagebox.showerror(
+                "Name taken",
+                f'A page named "{new}" already exists.\nChoose a different name.',
+            )
             return
         self.snapshot()
         for p in pages:
@@ -751,6 +764,12 @@ class Editor(ctk.CTk):
         name = simpledialog.askstring("New Folder", "Folder name:", parent=self)
         if not name:
             return
+        if self._page_name_taken(name):
+            messagebox.showerror(
+                "Name taken",
+                f'A page named "{name}" already exists.\nChoose a different name.',
+            )
+            return
         self.snapshot()
         b = button(name)
         b["type"] = "Folder"
@@ -767,8 +786,11 @@ class Editor(ctk.CTk):
         )
         if not name:
             return
-        if name in [p["name"] for p in self.profile["pages"]]:
-            messagebox.showerror("Name taken", "A page with that name already exists.")
+        if self._page_name_taken(name):
+            messagebox.showerror(
+                "Name taken",
+                f'A page named "{name}" already exists.\nChoose a different name.',
+            )
             return
         self.snapshot()
         self.profile["pages"].append({"name": name, "wallpaper": "", "buttons": []})
@@ -898,21 +920,117 @@ class Editor(ctk.CTk):
             self._create_linked_page(b)
 
     def profile_menu(self):
+        win = tk.Toplevel(self)
+        win.overrideredirect(True); win.attributes("-topmost", True)
+        win.configure(bg="#2b2b2b")
+        win.geometry(f"+{self.winfo_pointerx()}+{self.winfo_pointery()}")
+
+        def close(): win.destroy()
+        def action(fn): close(); fn()
+
+        profiles = self.data["profiles"]
+        active = self.data["activeProfile"]
+
+        for i, prof in enumerate(profiles):
+            is_active = (i == active)
+            row = ctk.CTkFrame(win, fg_color="transparent")
+            row.pack(fill="x", padx=4, pady=(4 if i == 0 else 1, 1))
+
+            # Profile name button — click to switch
+            ctk.CTkButton(
+                row, text=("✓  " if is_active else "    ") + prof["name"],
+                anchor="w", fg_color="#1a4a7a" if is_active else "transparent",
+                hover_color="#3a3a3a", width=160,
+                command=lambda x=i: action(lambda x=x: self._switch_profile(x)),
+            ).pack(side="left", fill="x", expand=True)
+
+            # Rename button
+            ctk.CTkButton(
+                row, text="✏", width=28, fg_color="transparent",
+                hover_color="#3a3a3a",
+                command=lambda x=i: action(lambda x=x: self._rename_profile(x)),
+            ).pack(side="left", padx=(2, 0))
+
+            # Delete button — disabled when only one profile exists
+            ctk.CTkButton(
+                row, text="🗑", width=28, fg_color="transparent",
+                hover_color="#3a3a3a", text_color="#e05555",
+                state="disabled" if len(profiles) <= 1 else "normal",
+                command=lambda x=i: action(lambda x=x: self._delete_profile(x)),
+            ).pack(side="left", padx=(2, 4))
+
+        ctk.CTkFrame(win, height=1, fg_color="#444").pack(fill="x", padx=6, pady=4)
+
+        ctk.CTkButton(
+            win, text="+ New profile", anchor="w",
+            fg_color="transparent", hover_color="#3a3a3a", width=220,
+            command=lambda: action(self._new_profile),
+        ).pack(fill="x", padx=4, pady=(0, 4))
+
+        win.bind("<FocusOut>", lambda e: close())
+        win.focus_force()
+
+    def _switch_profile(self, idx):
+        if self.data["activeProfile"] == idx:
+            return
+        self.snapshot()
+        self.data["activeProfile"] = idx
+        self.page = 0; self.selected = None
+        self.redraw()
+
+    def _new_profile(self):
         name = simpledialog.askstring(
-            "Profile", "New profile name (blank to cancel):", parent=self
+            "New profile", "Profile name:", parent=self
         )
-        if name:
-            self.snapshot()
-            self.data["profiles"].append(
-                {
-                    "id": str(uuid.uuid4()),
-                    "name": name,
-                    "pages": [{"name": "Home", "wallpaper": "", "buttons": []}],
-                }
+        if not name:
+            return
+        self.snapshot()
+        self.data["profiles"].append(
+            {
+                "id": str(uuid.uuid4()),
+                "name": name,
+                "pages": [{"name": "Home", "wallpaper": "", "buttons": []}],
+            }
+        )
+        self.data["activeProfile"] = len(self.data["profiles"]) - 1
+        self.page = 0; self.selected = None
+        self.redraw()
+
+    def _rename_profile(self, idx):
+        profiles = self.data["profiles"]
+        old = profiles[idx]["name"]
+        new = simpledialog.askstring(
+            "Rename profile", "New name:", initialvalue=old, parent=self
+        )
+        if not new or new == old:
+            return
+        if any(p["name"] == new for i, p in enumerate(profiles) if i != idx):
+            messagebox.showerror(
+                "Name taken",
+                f'A profile named "{new}" already exists.',
             )
-            self.data["activeProfile"] = len(self.data["profiles"]) - 1
-            self.page = 0
-            self.redraw()
+            return
+        self.snapshot()
+        profiles[idx]["name"] = new
+        self.redraw()
+
+    def _delete_profile(self, idx):
+        profiles = self.data["profiles"]
+        if len(profiles) <= 1:
+            messagebox.showinfo("Cannot delete", "You need at least one profile.")
+            return
+        name = profiles[idx]["name"]
+        if not messagebox.askyesno(
+            "Delete profile",
+            f'Delete "{name}" and all its pages and buttons?',
+        ):
+            return
+        self.snapshot()
+        profiles.pop(idx)
+        active = self.data["activeProfile"]
+        self.data["activeProfile"] = min(active, len(profiles) - 1)
+        self.page = 0; self.selected = None
+        self.redraw()
 
     def settings(self):
         win = ctk.CTkToplevel(self)
@@ -1034,10 +1152,27 @@ class Editor(ctk.CTk):
             return
         try:
             try:
-                self.data = json.loads(Path(path).read_text(encoding="utf8"))
+                candidate = json.loads(Path(path).read_text(encoding="utf8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 with zipfile.ZipFile(path) as z:
-                    self.data = json.loads(z.read("config.json"))
+                    candidate = json.loads(z.read("config.json"))
+            # Validate before touching self.data so a bad file can't corrupt the
+            # current session. A valid deck must have a profiles list with at
+            # least one profile containing at least one page.
+            if (
+                not isinstance(candidate, dict)
+                or not isinstance(candidate.get("profiles"), list)
+                or not candidate["profiles"]
+                or not isinstance(candidate["profiles"][0].get("pages"), list)
+                or not candidate["profiles"][0]["pages"]
+            ):
+                messagebox.showerror(
+                    "Invalid deck file",
+                    "This file doesn't look like a CYD Deck project.\n"
+                    "It must contain a profiles list with at least one page.",
+                )
+                return
+            self.data = candidate
             self._save_path = Path(path)
             self.page = 0
             self.selected = None
